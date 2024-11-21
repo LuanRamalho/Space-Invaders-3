@@ -7,6 +7,7 @@ from pygame import *
 import sys
 from os.path import abspath, dirname
 from random import choice
+import json
 
 BASE_PATH = abspath(dirname(__file__))
 FONT_PATH = BASE_PATH + '/fonts/'
@@ -568,7 +569,29 @@ class SpaceInvaders(object):
             if self.should_exit(e):
                 sys.exit()
 
+    def load_high_score(self):
+        try:
+            with open("highscore.json", "r") as file:
+                data = json.load(file)
+                self.highScore = data.get("highscore", 0)
+        except FileNotFoundError:
+            self.highScore = 0
+
+    def save_high_score(self):
+        """Salva o HighScore no arquivo JSON."""
+        with open("highscore.json", "w") as file:
+            json.dump({"highscore": self.highScore}, file)
+
+    def update_high_score(self):
+        """Atualiza o HighScore, se a pontuação atual for maior."""
+        if self.score > self.highScore:
+            self.highScore = self.score
+            self.save_high_score()
+
     def main(self):
+        # Carregar o HighScore antes de começar o loop principal
+        self.load_high_score()
+
         while True:
             if self.mainScreen:
                 self.screen.blit(self.background, (0, 0))
@@ -579,11 +602,16 @@ class SpaceInvaders(object):
                 self.enemy3Text.draw(self.screen)
                 self.enemy4Text.draw(self.screen)
                 self.create_main_menu()
+
+                # Exibir o HighScore no menu principal
+                highScoreText = Text(FONT, 20, f"HighScore: {self.highScore}", GREEN, 85, 30)
+                highScoreText.draw(self.screen)
+
                 for e in event.get():
                     if self.should_exit(e):
                         sys.exit()
                     if e.type == KEYUP:
-                        # Only create blockers on a new game, not a new round
+                        # Apenas criar blockers em um novo jogo
                         self.allBlockers = sprite.Group(self.make_blockers(0),
                                                         self.make_blockers(1),
                                                         self.make_blockers(2),
@@ -598,8 +626,7 @@ class SpaceInvaders(object):
                     currentTime = time.get_ticks()
                     if currentTime - self.gameTimer < 3000:
                         self.screen.blit(self.background, (0, 0))
-                        self.scoreText2 = Text(FONT, 20, str(self.score),
-                                               GREEN, 85, 5)
+                        self.scoreText2 = Text(FONT, 20, str(self.score), GREEN, 85, 5)
                         self.scoreText.draw(self.screen)
                         self.scoreText2.draw(self.screen)
                         self.nextRoundText.draw(self.screen)
@@ -607,7 +634,7 @@ class SpaceInvaders(object):
                         self.livesGroup.update()
                         self.check_input()
                     if currentTime - self.gameTimer > 3000:
-                        # Move enemies closer to bottom
+                        # Mover os inimigos para mais perto da parte inferior
                         self.enemyPosition += ENEMY_MOVE_DOWN
                         self.reset(self.score)
                         self.gameTimer += 3000
@@ -616,8 +643,7 @@ class SpaceInvaders(object):
                     self.play_main_music(currentTime)
                     self.screen.blit(self.background, (0, 0))
                     self.allBlockers.update(self.screen)
-                    self.scoreText2 = Text(FONT, 20, str(self.score), GREEN,
-                                           85, 5)
+                    self.scoreText2 = Text(FONT, 20, str(self.score), GREEN, 85, 5)
                     self.scoreText.draw(self.screen)
                     self.scoreText2.draw(self.screen)
                     self.livesText.draw(self.screen)
@@ -631,13 +657,15 @@ class SpaceInvaders(object):
 
             elif self.gameOver:
                 currentTime = time.get_ticks()
-                # Reset enemy starting position
+                # Atualizar HighScore ao final do jogo
+                self.update_high_score()
+
+                # Resetar a posição inicial dos inimigos
                 self.enemyPosition = ENEMY_DEFAULT_POSITION
                 self.create_game_over(currentTime)
 
             display.update()
             self.clock.tick(60)
-
 
 if __name__ == '__main__':
     game = SpaceInvaders()
